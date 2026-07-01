@@ -118,7 +118,7 @@ function App() {
               exit={{ opacity: 0, scale: 0.9 }}
               className="mb-6"
             >
-              <AnimatedCard className="border-green-500/30 bg-green-900/40 backdrop-blur-xl">
+              <AnimatedCard className="border-green-500/30" glowIntensity="high">
                 <p className="font-semibold text-green-400">Snippet created!</p>
                 <p className="font-mono text-sm mt-2 text-gray-200">Slug: {result.slug}</p>
                 <p className="font-mono text-sm text-gray-200">URL: {result.url}</p>
@@ -127,7 +127,7 @@ function App() {
           )}
         </AnimatePresence>
 
-        <AnimatedCard className="bg-gray-950/60 backdrop-blur-xl border-gray-700/50">
+        <AnimatedCard glowIntensity="medium">
           <form onSubmit={handleSubmit} className="space-y-5">
             <AnimatedInput
               label="Title"

@@ -1,0 +1,84 @@
+﻿.vibgyor-border-wrapper {
+  position: relative;
+  border-radius: 20px;
+  padding: 3px;
+  overflow: hidden;
+  background: #0f0f1a;
+}
+
+.vibgyor-border-inner {
+  position: relative;
+  z-index: 2;
+  background: rgba(17, 17, 24, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 17px;
+  height: 100%;
+}
+
+.vibgyor-border-animated {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  z-index: 1;
+  background: conic-gradient(
+    from 0deg,
+    #ff0000 0deg,
+    #ff7f00 60deg,
+    #ffff00 120deg,
+    #00ff00 180deg,
+    #0000ff 240deg,
+    #4b0082 300deg,
+    #9400d3 360deg,
+    #ff0000 420deg
+  );
+  animation: vibgyor-spin 3s linear infinite;
+  filter: blur(8px);
+}
+
+.vibgyor-border-wrapper.glow-low .vibgyor-border-animated {
+  filter: blur(4px);
+  opacity: 0.5;
+}
+
+.vibgyor-border-wrapper.glow-medium .vibgyor-border-animated {
+  filter: blur(8px);
+  opacity: 0.7;
+}
+
+.vibgyor-border-wrapper.glow-high .vibgyor-border-animated {
+  filter: blur(16px);
+  opacity: 0.9;
+}
+
+@keyframes vibgyor-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Light shadow effect */
+.vibgyor-border-wrapper {
+  box-shadow: 
+    0 0 20px rgba(138, 92, 255, 0.15),
+    0 0 40px rgba(138, 92, 255, 0.1),
+    0 0 60px rgba(138, 92, 255, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.vibgyor-border-wrapper.glow-high {
+  box-shadow: 
+    0 0 30px rgba(138, 92, 255, 0.25),
+    0 0 60px rgba(138, 92, 255, 0.15),
+    0 0 90px rgba(138, 92, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Subtle inner glow on the content area */
+.vibgyor-border-inner {
+  box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.3);
+}
