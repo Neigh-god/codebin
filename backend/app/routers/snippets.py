@@ -1,7 +1,11 @@
-﻿from fastapi import APIRouter, HTTPException
+﻿from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel
 from typing import Optional, Literal
+from datetime import datetime, timedelta
 from app.utils.slug import generate_slug
+from app.database import init_db
+from app.services.snippets import get_snippet_by_slug, create_snippet, increment_view_count
+import bcrypt
 
 router = APIRouter()
 
@@ -15,23 +19,133 @@ class SnippetCreate(BaseModel):
     password: Optional[str] = None
     is_public: bool = True
 
+def generate_unique_slug(max_retries: int = 5) -> str:
+    import shortuuid
+    for _ in range(max_retries):
+        slug = shortuuid.ShortUUID().random(length=6)
+        # Check uniqueness via service
+        import asyncio
+        existing = asyncio.get_event_loop().run_until_complete(get_snippet_by_slug(slug))
+        if not existing:
+            return slug
+    raise HTTPException(status_code=500, detail="Could not generate unique slug")
+
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+def verify_password(password: str, hashed: str) -> bool:
+    return bcrypt.checkpw(password.encode(), hashed.encode())
+
+def calculate_expiry(expiry_type: str, expiry_value: Optional[str]) -> Optional[datetime]:
+    if expiry_type == "never":
+        return None
+    elif expiry_type == "view_once":
+        return None
+    elif expiry_type == "time" and expiry_value:
+        now = datetime.utcnow()
+        if expiry_value == "1h":
+            return now + timedelta(hours=1)
+        elif expiry_value == "1d":
+            return now + timedelta(days=1)
+        elif expiry_value == "1w":
+            return now + timedelta(weeks=1)
+        elif expiry_value == "1m":
+            return now + timedelta(days=30)
+    return None
+
 @router.post("/snippets")
-def create_snippet(data: SnippetCreate):
+async def create_snippet_endpoint(data: SnippetCreate):
+    from app.services.snippets import get_snippet_by_slug
+    
+    # Generate unique slug
     slug = generate_slug()
+    while await get_snippet_by_slug(slug):
+        slug = generate_slug()
+    
+    expires_at = calculate_expiry(data.expiry_type, data.expires_at)
+    max_views = 1 if data.expiry_type == "view_once" else data.max_views
+    
+    password_hash = None
+    if data.password:
+        password_hash = hash_password(data.password)
+    
+    snippet_data = {
+        "slug": slug,
+        "title": data.title,
+        "code": data.code,
+        "language": data.language,
+        "expiry_type": data.expiry_type,
+        "expires_at": expires_at,
+        "max_views": max_views,
+        "password_hash": password_hash,
+        "is_public": data.is_public,
+    }
+    
+    snippet = await create_snippet(snippet_data)
+    
     return {
         "slug": slug,
-        "url": f"/{slug}",
-        "message": "Snippet created (placeholder -- Supabase not connected yet)"
+        "url": f"/s/{slug}",
+        "message": "Snippet created successfully"
     }
 
 @router.get("/snippets/{slug}")
-def get_snippet(slug: str):
-    return {"slug": slug, "message": "Placeholder -- Supabase not connected yet"}
+async def get_snippet(slug: str, password: Optional[str] = None):
+    snippet = await get_snippet_by_slug(slug)
+    
+    if not snippet:
+        raise HTTPException(status_code=404, detail="Snippet not found")
+    
+    # Check time-based expiry
+    if snippet.expiry_type == "time" and snippet.expires_at:
+        if snippet.expires_at < datetime.utcnow():
+            raise HTTPException(status_code=410, detail="Snippet has expired")
+    
+    # Check view-once expiry
+    if snippet.expiry_type == "view_once":
+        if snippet.view_count >= snippet.max_views:
+            raise HTTPException(status_code=410, detail="Snippet has been viewed")
+    
+    # Check password
+    if snippet.password_hash:
+        if not password:
+            raise HTTPException(status_code=403, detail="Password required")
+        if not verify_password(password, snippet.password_hash):
+            raise HTTPException(status_code=403, detail="Invalid password")
+    
+    # Increment view count
+    await increment_view_count(slug)
+    
+    return {
+        "slug": snippet.slug,
+        "title": snippet.title,
+        "code": snippet.code,
+        "language": snippet.language,
+        "created_at": snippet.created_at.isoformat() if snippet.created_at else None,
+        "view_count": snippet.view_count + 1,
+    }
 
 @router.get("/snippets/{slug}/raw")
-def get_snippet_raw(slug: str):
-    return {"slug": slug, "message": "Raw placeholder"}
+async def get_snippet_raw(slug: str):
+    snippet = await get_snippet_by_slug(slug)
+    
+    if not snippet:
+        raise HTTPException(status_code=404, detail="Snippet not found")
+    
+    return Response(content=snippet.code, media_type="text/plain")
 
 @router.get("/snippets/{slug}/download")
-def download_snippet(slug: str):
-    return {"slug": slug, "message": "Download placeholder"}
+async def download_snippet(slug: str):
+    snippet = await get_snippet_by_slug(slug)
+    
+    if not snippet:
+        raise HTTPException(status_code=404, detail="Snippet not found")
+    
+    ext = snippet.language if snippet.language != "text" else "txt"
+    filename = f"{snippet.title or 'snippet'}.{ext}"
+    
+    return Response(
+        content=snippet.code,
+        media_type="text/plain",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )

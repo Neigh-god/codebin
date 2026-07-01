@@ -2,6 +2,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import ColorBends from './components/effects/ColorBends'
 import GlitchText from './components/ui/GlitchText'
+import Shuffle from './components/ui/Shuffle'
 import AnimatedCard from './components/ui/AnimatedCard'
 import GlowButton from './components/ui/GlowButton'
 import AnimatedInput from './components/ui/AnimatedInput'
@@ -107,7 +108,25 @@ function App() {
               codeBin
             </GlitchText>
           </div>
-          <p className="text-gray-300 mt-4 text-lg drop-shadow-lg">Paste. Share. Expire.</p>
+          
+          {/* Shuffle animated subtitle */}
+          <div className="mt-4 flex justify-center">
+            <Shuffle
+              text="Paste. Share. Expire."
+              shuffleDirection="right"
+              duration={0.4}
+              animationMode="evenodd"
+              shuffleTimes={2}
+              ease="power3.out"
+              stagger={0.04}
+              triggerOnce={true}
+              triggerOnHover={true}
+              respectReducedMotion={true}
+              colorFrom="#b0b0c0"
+              colorTo="#ffffff"
+              className="text-lg tracking-widest"
+            />
+          </div>
         </motion.div>
 
         <AnimatePresence>
@@ -174,7 +193,7 @@ function App() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="text-center text-gray-400 text-sm mt-8"
+          className="text-center text-gray-500 text-sm mt-8"
         >
           codeBin — Share code snippets with style
         </motion.p>
