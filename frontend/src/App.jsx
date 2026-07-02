@@ -1,4 +1,5 @@
 ﻿import { useState } from 'react'
+import { Routes, Route, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import ColorBends from './components/effects/ColorBends'
 import GlitchText from './components/ui/GlitchText'
@@ -8,6 +9,11 @@ import GlowButton from './components/ui/GlowButton'
 import AnimatedInput from './components/ui/AnimatedInput'
 import AnimatedTextarea from './components/ui/AnimatedTextarea'
 import AnimatedSelect from './components/ui/AnimatedSelect'
+import ToastContainer from './components/feedback/ToastContainer'
+import Navbar from './components/layout/Navbar'
+import Footer from './components/layout/Footer'
+import SnippetView from './pages/SnippetView'
+import { useToast } from './hooks/useToast'
 
 const languages = [
   { value: 'text', label: 'Plain Text' },
@@ -32,7 +38,8 @@ const expiryOptions = [
   { value: 'view_once', label: 'View once' },
 ]
 
-function App() {
+function HomePage() {
+  const { toasts, addToast, removeToast } = useToast()
   const [code, setCode] = useState('')
   const [language, setLanguage] = useState('text')
   const [title, setTitle] = useState('')
@@ -59,8 +66,10 @@ function App() {
       })
       const data = await res.json()
       setResult(data)
+      addToast('Snippet created successfully!', 'success')
     } catch (err) {
       console.error(err)
+      addToast('Failed to create snippet', 'error')
     } finally {
       setLoading(false)
     }
@@ -68,6 +77,8 @@ function App() {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+      
       {/* ColorBends animated background */}
       <div className="fixed inset-0" style={{ zIndex: 0 }}>
         <ColorBends
@@ -92,113 +103,120 @@ function App() {
       <div className="fixed inset-0 bg-black/40" style={{ zIndex: 1 }} />
 
       {/* Main content */}
-      <div className="relative z-10 min-h-screen p-4 md:p-8 max-w-4xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
-        >
-          <div className="flex justify-center">
-            <GlitchText
-              speed={1}
-              enableShadows
-              enableOnHover={false}
-              className="text-5xl md:text-6xl"
-            >
-              codeBin
-            </GlitchText>
-          </div>
-          
-          {/* Shuffle animated subtitle */}
-          <div className="mt-4 flex justify-center">
-            <Shuffle
-              text="Paste. Share. Expire."
-              shuffleDirection="right"
-              duration={0.4}
-              animationMode="evenodd"
-              shuffleTimes={2}
-              ease="power3.out"
-              stagger={0.04}
-              triggerOnce={true}
-              triggerOnHover={true}
-              respectReducedMotion={true}
-              colorFrom="#b0b0c0"
-              colorTo="#ffffff"
-              className="text-lg tracking-widest"
-            />
-          </div>
-        </motion.div>
-
-        <AnimatePresence>
-          {result && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="mb-6"
-            >
-              <AnimatedCard className="border-green-500/30" glowIntensity="high">
-                <p className="font-semibold text-green-400">Snippet created!</p>
-                <p className="font-mono text-sm mt-2 text-gray-200">Slug: {result.slug}</p>
-                <p className="font-mono text-sm text-gray-200">URL: {result.url}</p>
-              </AnimatedCard>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <AnimatedCard glowIntensity="medium">
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <AnimatedInput
-              label="Title"
-              type="text"
-              placeholder="Optional title..."
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <AnimatedSelect
-                label="Language"
-                options={languages}
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-              />
-
-              <AnimatedSelect
-                label="Expiry"
-                options={expiryOptions}
-                value={expiry}
-                onChange={(e) => setExpiry(e.target.value)}
+      <div className="relative z-10 min-h-screen flex flex-col">
+        <Navbar />
+        
+        <main className="flex-1 pt-20 p-4 md:p-8 max-w-4xl mx-auto w-full">
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center mb-8"
+          >
+            <div className="flex justify-center">
+              <GlitchText
+                speed={1}
+                enableShadows
+                enableOnHover={false}
+                className="text-5xl md:text-6xl"
+              >
+                codeBin
+              </GlitchText>
+            </div>
+            
+            <div className="mt-4 flex justify-center">
+              <Shuffle
+                text="Paste. Share. Expire."
+                shuffleDirection="right"
+                duration={0.4}
+                animationMode="evenodd"
+                shuffleTimes={2}
+                ease="power3.out"
+                stagger={0.04}
+                triggerOnce={true}
+                triggerOnHover={true}
+                respectReducedMotion={true}
+                colorFrom="#b0b0c0"
+                colorTo="#ffffff"
+                className="text-lg tracking-widest"
               />
             </div>
+          </motion.div>
 
-            <AnimatedTextarea
-              label="Code"
-              placeholder="Paste your code here..."
-              rows={14}
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              required
-            />
+          <AnimatePresence>
+            {result && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="mb-6"
+              >
+                <AnimatedCard className="border-green-500/30" glowIntensity="high">
+                  <p className="font-semibold text-green-400">Snippet created!</p>
+                  <p className="font-mono text-sm mt-2 text-gray-200">
+                    Slug: <Link to={result.url} className="text-blue-400 hover:text-blue-300">{result.slug}</Link>
+                  </p>
+                  <p className="font-mono text-sm text-gray-200">URL: {result.url}</p>
+                </AnimatedCard>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-            <div className="flex justify-end pt-2">
-              <GlowButton type="submit" disabled={loading}>
-                {loading ? 'Creating...' : 'Create Snippet'}
-              </GlowButton>
-            </div>
-          </form>
-        </AnimatedCard>
+          <AnimatedCard glowIntensity="medium">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <AnimatedInput
+                label="Title"
+                type="text"
+                placeholder="Optional title..."
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
 
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="text-center text-gray-500 text-sm mt-8"
-        >
-          codeBin — Share code snippets with style
-        </motion.p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <AnimatedSelect
+                  label="Language"
+                  options={languages}
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                />
+
+                <AnimatedSelect
+                  label="Expiry"
+                  options={expiryOptions}
+                  value={expiry}
+                  onChange={(e) => setExpiry(e.target.value)}
+                />
+              </div>
+
+              <AnimatedTextarea
+                label="Code"
+                placeholder="Paste your code here..."
+                rows={14}
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                required
+              />
+
+              <div className="flex justify-end pt-2">
+                <GlowButton type="submit" disabled={loading}>
+                  {loading ? 'Creating...' : 'Create Snippet'}
+                </GlowButton>
+              </div>
+            </form>
+          </AnimatedCard>
+        </main>
+
+        <Footer />
       </div>
     </div>
+  )
+}
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/s/:slug" element={<SnippetView />} />
+    </Routes>
   )
 }
 
