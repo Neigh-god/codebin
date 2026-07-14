@@ -1,8 +1,7 @@
 ﻿import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { Highlight, themes } from 'prism-react-renderer'
 import AnimatedCard from '../components/ui/AnimatedCard'
 import CopyButton from '../components/ui/CopyButton'
 import VibgyorBorder from '../components/ui/VibgyorBorder'
@@ -24,7 +23,7 @@ export default function SnippetView() {
       setLoading(true)
       let url = 'http://localhost:8000/api/snippets/' + slug
       if (pwd) url += '?password=' + encodeURIComponent(pwd)
-      
+
       const res = await fetch(url)
       if (res.status === 403) {
         setNeedsPassword(true)
@@ -35,7 +34,7 @@ export default function SnippetView() {
         const errData = await res.json()
         throw new Error(errData.detail || 'Failed to fetch')
       }
-      
+
       const data = await res.json()
       setSnippet(data)
       setNeedsPassword(false)
@@ -103,6 +102,22 @@ export default function SnippetView() {
 
   if (!snippet) return null
 
+  const languageMap = {
+    text: 'text',
+    python: 'python',
+    javascript: 'javascript',
+    typescript: 'typescript',
+    html: 'html',
+    css: 'css',
+    json: 'json',
+    sql: 'sql',
+    bash: 'bash',
+    rust: 'rust',
+    go: 'go',
+  }
+
+  const prismLang = languageMap[snippet.language] || 'text'
+
   return (
     <div className="min-h-screen pt-20 pb-8 px-4">
       <div className="max-w-4xl mx-auto">
@@ -140,25 +155,45 @@ export default function SnippetView() {
 
           <VibgyorBorder glowIntensity="low">
             <div className="overflow-hidden rounded-xl">
-              <SyntaxHighlighter
-                language={snippet.language === 'text' ? 'plaintext' : snippet.language}
-                style={vscDarkPlus}
-                showLineNumbers
-                customStyle={{
-                  margin: 0,
-                  padding: '1.5rem',
-                  fontSize: '0.9rem',
-                  lineHeight: '1.6',
-                  background: 'transparent',
-                }}
-                lineNumberStyle={{
-                  color: '#4a4a5a',
-                  paddingRight: '1rem',
-                  minWidth: '2.5rem',
-                }}
+              <Highlight
+                theme={themes.vsDark}
+                code={snippet.code}
+                language={prismLang}
               >
-                {snippet.code}
-              </SyntaxHighlighter>
+                {({ className, style, tokens, getLineProps, getTokenProps }) => (
+                  <pre
+                    className={`${className} overflow-auto`}
+                    style={{
+                      ...style,
+                      margin: 0,
+                      padding: '1.5rem',
+                      fontSize: '0.9rem',
+                      lineHeight: '1.6',
+                      background: 'transparent',
+                    }}
+                  >
+                    {tokens.map((line, i) => (
+                      <div key={i} {...getLineProps({ line })}>
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            width: '2.5rem',
+                            textAlign: 'right',
+                            paddingRight: '1rem',
+                            color: '#4a4a5a',
+                            userSelect: 'none',
+                          }}
+                        >
+                          {i + 1}
+                        </span>
+                        {line.map((token, key) => (
+                          <span key={key} {...getTokenProps({ token })} />
+                        ))}
+                      </div>
+                    ))}
+                  </pre>
+                )}
+              </Highlight>
             </div>
           </VibgyorBorder>
 
