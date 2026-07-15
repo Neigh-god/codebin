@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { Routes, Route, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import ColorBends from './components/effects/ColorBends'
@@ -46,16 +46,25 @@ function HomePage() {
   const [expiry, setExpiry] = useState('never')
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [recentSnippets, setRecentSnippets] = useState([])
+
+  useEffect(() => {
+    fetch('http://localhost:8000/api/snippets/recent')
+      .then(res => res.json())
+      .then(data => setRecentSnippets(data))
+      .catch(err => console.error('Failed to load recent snippets:', err))
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
-    
+
     const payload = {
       code,
       language,
       title: title || undefined,
       expiry_type: expiry === 'view_once' ? 'view_once' : expiry === 'never' ? 'never' : 'time',
+      expires_at: expiry === 'never' || expiry === 'view_once' ? undefined : expiry,
     }
 
     try {
@@ -67,6 +76,10 @@ function HomePage() {
       const data = await res.json()
       setResult(data)
       addToast('Snippet created successfully!', 'success')
+
+      fetch('http://localhost:8000/api/snippets/recent')
+        .then(res => res.json())
+        .then(data => setRecentSnippets(data))
     } catch (err) {
       console.error(err)
       addToast('Failed to create snippet', 'error')
@@ -78,8 +91,7 @@ function HomePage() {
   return (
     <div className="relative min-h-screen overflow-hidden">
       <ToastContainer toasts={toasts} onRemove={removeToast} />
-      
-      {/* ColorBends animated background */}
+
       <div className="fixed inset-0" style={{ zIndex: 0 }}>
         <ColorBends
           colors={['#ff5c7a', '#8a5cff', '#00ffd1']}
@@ -99,13 +111,11 @@ function HomePage() {
         />
       </div>
 
-      {/* Dark overlay for readability */}
       <div className="fixed inset-0 bg-black/40" style={{ zIndex: 1 }} />
 
-      {/* Main content */}
       <div className="relative z-10 min-h-screen flex flex-col">
         <Navbar />
-        
+
         <main className="flex-1 pt-20 p-4 md:p-8 max-w-4xl mx-auto w-full">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -122,7 +132,7 @@ function HomePage() {
                 codeBin
               </GlitchText>
             </div>
-            
+
             <div className="mt-4 flex justify-center">
               <Shuffle
                 text="Paste. Share. Expire."
@@ -203,6 +213,60 @@ function HomePage() {
               </div>
             </form>
           </AnimatedCard>
+
+          {recentSnippets.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="mt-8"
+            >
+              <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                Recent Snippets
+              </h2>
+
+              <div className="space-y-3">
+                {recentSnippets.map((snippet) => (
+                  <Link
+                    key={snippet.slug}
+                    to={`/s/${snippet.slug}`}
+                    className="block group"
+                  >
+                    <AnimatedCard glowIntensity="low" className="hover:border-gray-600 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className={`
+                            px-2 py-0.5 rounded text-xs font-mono font-medium
+                            ${snippet.language === 'python' ? 'bg-blue-500/20 text-blue-400' :
+                              snippet.language === 'javascript' ? 'bg-yellow-500/20 text-yellow-400' :
+                                snippet.language === 'typescript' ? 'bg-blue-400/20 text-blue-300' :
+                                  snippet.language === 'html' ? 'bg-orange-500/20 text-orange-400' :
+                                    snippet.language === 'css' ? 'bg-cyan-500/20 text-cyan-400' :
+                                      snippet.language === 'json' ? 'bg-gray-500/20 text-gray-400' :
+                                        snippet.language === 'sql' ? 'bg-purple-500/20 text-purple-400' :
+                                          snippet.language === 'bash' ? 'bg-green-500/20 text-green-400' :
+                                            snippet.language === 'rust' ? 'bg-orange-600/20 text-orange-500' :
+                                              snippet.language === 'go' ? 'bg-cyan-400/20 text-cyan-300' :
+                                                'bg-gray-600/20 text-gray-400'}
+                          `}>
+                            {snippet.language}
+                          </span>
+                          <span className="text-white font-medium group-hover:text-blue-400 transition-colors">
+                            {snippet.title || 'Untitled'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                          <span>{snippet.view_count} views</span>
+                          <span>{new Date(snippet.created_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    </AnimatedCard>
+                  </Link>
+                ))}
+              </div>
+            </motion.div>
+          )}
         </main>
 
         <Footer />

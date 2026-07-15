@@ -1,11 +1,12 @@
-﻿from fastapi import APIRouter, HTTPException, Response
+﻿from fastapi import APIRouter, HTTPException, Response, Query
 from pydantic import BaseModel
 from typing import Optional, Literal
 from datetime import datetime, timedelta
 from app.utils.slug import generate_slug
-from app.database import init_db
+from app.database import init_db, async_session, SnippetModel
 from app.services.snippets import get_snippet_by_slug, create_snippet, increment_view_count
 import bcrypt
+from sqlalchemy import select, desc
 
 router = APIRouter()
 
@@ -23,7 +24,6 @@ def generate_unique_slug(max_retries: int = 5) -> str:
     import shortuuid
     for _ in range(max_retries):
         slug = shortuuid.ShortUUID().random(length=6)
-        # Check uniqueness via service
         import asyncio
         existing = asyncio.get_event_loop().run_until_complete(get_snippet_by_slug(slug))
         if not existing:
@@ -53,11 +53,39 @@ def calculate_expiry(expiry_type: str, expiry_value: Optional[str]) -> Optional[
             return now + timedelta(days=30)
     return None
 
+# ========== RECENT SNIPPETS — MUST BE BEFORE /{slug} ROUTES ==========
+@router.get("/snippets/recent")
+async def get_recent_snippets(limit: int = Query(10, ge=1, le=50)):
+    async with async_session() as session:
+        now = datetime.utcnow()
+        result = await session.execute(
+            select(SnippetModel)
+            .where(SnippetModel.password_hash == None)
+            .where(SnippetModel.is_public == True)
+            .where(
+                (SnippetModel.expires_at == None) | (SnippetModel.expires_at > now)
+            )
+            .order_by(desc(SnippetModel.created_at))
+            .limit(limit)
+        )
+        snippets = result.scalars().all()
+        
+        return [
+            {
+                "slug": s.slug,
+                "title": s.title,
+                "language": s.language,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+                "view_count": s.view_count,
+                "expiry_type": s.expiry_type,
+            }
+            for s in snippets
+        ]
+
 @router.post("/snippets")
 async def create_snippet_endpoint(data: SnippetCreate):
     from app.services.snippets import get_snippet_by_slug
     
-    # Generate unique slug
     slug = generate_slug()
     while await get_snippet_by_slug(slug):
         slug = generate_slug()
@@ -96,24 +124,20 @@ async def get_snippet(slug: str, password: Optional[str] = None):
     if not snippet:
         raise HTTPException(status_code=404, detail="Snippet not found")
     
-    # Check time-based expiry
     if snippet.expiry_type == "time" and snippet.expires_at:
         if snippet.expires_at < datetime.utcnow():
             raise HTTPException(status_code=410, detail="Snippet has expired")
     
-    # Check view-once expiry
     if snippet.expiry_type == "view_once":
         if snippet.view_count >= snippet.max_views:
             raise HTTPException(status_code=410, detail="Snippet has been viewed")
     
-    # Check password
     if snippet.password_hash:
         if not password:
             raise HTTPException(status_code=403, detail="Password required")
         if not verify_password(password, snippet.password_hash):
             raise HTTPException(status_code=403, detail="Invalid password")
     
-    # Increment view count
     await increment_view_count(slug)
     
     return {
