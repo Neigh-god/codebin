@@ -2,6 +2,7 @@
 import { useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Highlight, themes } from 'prism-react-renderer'
+import { QRCodeSVG } from 'qrcode.react'
 import AnimatedCard from '../components/ui/AnimatedCard'
 import CopyButton from '../components/ui/CopyButton'
 import VibgyorBorder from '../components/ui/VibgyorBorder'
@@ -117,6 +118,7 @@ export default function SnippetView() {
   }
 
   const prismLang = languageMap[snippet.language] || 'text'
+  const shareUrl = `http://localhost:5173/s/${slug}`
 
   return (
     <div className="min-h-screen pt-20 pb-8 px-4">
@@ -150,6 +152,22 @@ export default function SnippetView() {
               >
                 Download
               </a>
+            </div>
+          </div>
+
+          {/* QR Code */}
+          <div className="mb-6 flex items-center gap-4">
+            <div className="bg-white p-2 rounded-lg">
+              <QRCodeSVG
+                value={shareUrl}
+                size={96}
+                level="M"
+                includeMargin={false}
+              />
+            </div>
+            <div className="text-sm text-gray-400">
+              <p className="text-white font-medium mb-1">Scan to share</p>
+              <p className="text-xs">Open this snippet on your phone</p>
             </div>
           </div>
 
