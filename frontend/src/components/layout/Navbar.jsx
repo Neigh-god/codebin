@@ -1,10 +1,12 @@
 ﻿import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { Sun, Moon } from 'lucide-react'
-import { useTheme } from '../../hooks/useTheme.jsx'
+import { Sun, Moon, LogIn, LogOut, User } from 'lucide-react'
+import { useTheme } from '../../hooks/useTheme'
+import { useAuth } from '../../hooks/useAuth'
 
 export default function Navbar() {
   const { theme, toggleTheme } = useTheme()
+  const { user, logout } = useAuth()
 
   return (
     <motion.nav
@@ -22,24 +24,40 @@ export default function Navbar() {
           </span>
         </Link>
 
-        <motion.button
-          onClick={toggleTheme}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="relative p-2.5 rounded-xl bg-gray-800/50 border border-gray-700/50 text-gray-400 hover:text-yellow-400 hover:border-yellow-400/30 transition-all duration-300"
-          title={theme === 'dark' ? 'Switch to light' : 'Switch to dark'}
-        >
-          <motion.div
-            initial={false}
-            animate={{ rotate: theme === 'dark' ? 0 : 180 }}
-            transition={{ duration: 0.3 }}
+        <div className="flex items-center gap-2">
+          {user && (
+            <span className="text-sm text-gray-400 flex items-center gap-1">
+              <User size={16} />
+              {user.username}
+            </span>
+          )}
+
+          {user ? (
+            <button
+              onClick={logout}
+              className="p-2 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-400/10 transition-all"
+              title="Logout"
+            >
+              <LogOut size={18} />
+            </button>
+          ) : (
+            <Link
+              to="/login"
+              className="p-2 rounded-lg text-gray-400 hover:text-blue-400 hover:bg-blue-400/10 transition-all"
+              title="Login"
+            >
+              <LogIn size={18} />
+            </Link>
+          )}
+
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/10 transition-all"
+            title={theme === 'dark' ? 'Switch to light' : 'Switch to dark'}
           >
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          </motion.div>
-
-          {/* Glow effect */}
-          <span className="absolute inset-0 rounded-xl bg-yellow-400/10 opacity-0 hover:opacity-100 transition-opacity duration-300" />
-        </motion.button>
+          </button>
+        </div>
       </div>
     </motion.nav>
   )

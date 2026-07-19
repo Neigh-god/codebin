@@ -14,6 +14,7 @@ import Navbar from './components/layout/Navbar'
 import Footer from './components/layout/Footer'
 import SnippetView from './pages/SnippetView'
 import { useToast } from './hooks/useToast'
+import Login from './pages/login'
 
 const languages = [
   { value: 'text', label: 'Plain Text' },
@@ -280,6 +281,7 @@ function App() {
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/s/:slug" element={<SnippetView />} />
+      <Route path="/login" element={<Login />} />
     </Routes>
   )
 }
