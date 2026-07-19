@@ -14,6 +14,7 @@ export default function SnippetView() {
   const [error, setError] = useState(null)
   const [password, setPassword] = useState('')
   const [needsPassword, setNeedsPassword] = useState(false)
+  const [embedCopied, setEmbedCopied] = useState(false)
 
   useEffect(() => {
     fetchSnippet()
@@ -49,6 +50,13 @@ export default function SnippetView() {
   const handlePasswordSubmit = (e) => {
     e.preventDefault()
     fetchSnippet(password)
+  }
+
+  const handleEmbed = () => {
+    const embedCode = `<iframe src="http://localhost:8000/api/snippets/${slug}/embed" width="100%" height="300" frameborder="0" style="border-radius: 8px; overflow: hidden;"></iframe>`
+    navigator.clipboard.writeText(embedCode)
+    setEmbedCopied(true)
+    setTimeout(() => setEmbedCopied(false), 2000)
   }
 
   if (loading) {
@@ -152,6 +160,12 @@ export default function SnippetView() {
               >
                 Download
               </a>
+              <button
+                onClick={handleEmbed}
+                className="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-800/50 text-gray-300 border border-gray-700 hover:border-gray-600 hover:text-white transition-all"
+              >
+                {embedCopied ? 'Copied!' : 'Embed'}
+              </button>
             </div>
           </div>
 
