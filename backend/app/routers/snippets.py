@@ -1,7 +1,8 @@
+from datetime import tzinfo
 from fastapi import APIRouter, HTTPException, Response, Query
 from pydantic import BaseModel
 from typing import Optional, Literal
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import bcrypt
 from app.utils.slug import generate_slug
 from app.database import init_db, async_session, SnippetModel
@@ -36,7 +37,7 @@ def calculate_expiry(expiry_type: str, expiry_value: Optional[str]) -> Optional[
     elif expiry_type == "view_once":
         return None
     elif expiry_type == "time" and expiry_value:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         if expiry_value == "1h":
             return now + timedelta(hours=1)
         elif expiry_value == "1d":
@@ -293,6 +294,9 @@ async def get_snippet(slug: str, password: Optional[str] = None):
         "language": snippet.language,
         "created_at": snippet.created_at.isoformat() if snippet.created_at else None,
         "view_count": snippet.view_count + 1,
+        "expiry_type": snippet.expiry_type,
+        "expires_at": snippet.expires_at.replace(tzinfo=timezone.utc).isoformat() if snippet.expires_at else None,
+        "max_views": snippet.max_views,
     }
 
 

@@ -7,6 +7,59 @@ import AnimatedCard from '../components/ui/AnimatedCard'
 import CopyButton from '../components/ui/CopyButton'
 import VibgyorBorder from '../components/ui/VibgyorBorder'
 
+function useCountdown(expiresAt) {
+  const [timeLeft, setTimeLeft] = useState(null)
+
+  useEffect(() => {
+    if (!expiresAt || expiresAt === 'null' || expiresAt === 'undefined') return
+
+    const calculateTimeLeft = () => {
+      const now = new Date().getTime()
+
+      let expiry
+      try {
+        expiry = new Date(expiresAt).getTime()
+      } catch {
+        return null
+      }
+
+      if (isNaN(expiry)) return null
+
+      const diff = expiry - now
+
+      if (diff <= 0) return { expired: true, text: 'Expired' }
+
+      const hours = Math.floor(diff / (1000 * 60 * 60))
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+
+      if (hours > 24) {
+        const days = Math.floor(hours / 24)
+        return { expired: false, text: `${days}d ${hours % 24}h ${minutes}m` }
+      }
+      if (hours > 0) {
+        return { expired: false, text: `${hours}h ${minutes}m ${seconds}s` }
+      }
+      if (minutes > 0) {
+        return { expired: false, text: `${minutes}m ${seconds}s` }
+      }
+      return { expired: false, text: `${seconds}s` }
+    }
+
+    const initial = calculateTimeLeft()
+    if (!initial) return
+
+    setTimeLeft(initial)
+    const timer = setInterval(() => {
+      setTimeLeft(calculateTimeLeft())
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [expiresAt])
+
+  return timeLeft
+}
+
 export default function SnippetView() {
   const { slug } = useParams()
   const [snippet, setSnippet] = useState(null)
@@ -15,6 +68,8 @@ export default function SnippetView() {
   const [password, setPassword] = useState('')
   const [needsPassword, setNeedsPassword] = useState(false)
   const [embedCopied, setEmbedCopied] = useState(false)
+
+  const countdown = useCountdown(snippet?.expires_at)
 
   useEffect(() => {
     fetchSnippet()
@@ -31,6 +86,10 @@ export default function SnippetView() {
         setNeedsPassword(true)
         setLoading(false)
         return
+      }
+      if (res.status === 410) {
+        const errData = await res.json()
+        throw new Error(errData.detail || 'This snippet has expired')
       }
       if (!res.ok) {
         const errData = await res.json()
@@ -142,6 +201,19 @@ export default function SnippetView() {
               </h1>
               <p className="text-gray-400 text-sm mt-1">
                 {snippet.language} • {new Date(snippet.created_at).toLocaleString()}
+                {snippet.expiry_type === 'view_once' && (
+                  <span className="ml-2 px-2 py-0.5 rounded text-xs bg-yellow-500/20 text-yellow-400 font-medium">
+                    View Once
+                  </span>
+                )}
+                {countdown && (
+                  <span className={`ml-2 px-2 py-0.5 rounded text-xs font-medium ${countdown.expired
+                    ? 'bg-red-500/20 text-red-400'
+                    : 'bg-orange-500/20 text-orange-400'
+                    }`}>
+                    {countdown.expired ? 'Expired' : `⏱ ${countdown.text}`}
+                  </span>
+                )}
               </p>
             </div>
             <div className="flex gap-2">
@@ -169,7 +241,6 @@ export default function SnippetView() {
             </div>
           </div>
 
-          {/* QR Code */}
           <div className="mb-6 flex items-center gap-4">
             <div className="bg-white p-2 rounded-lg">
               <QRCodeSVG

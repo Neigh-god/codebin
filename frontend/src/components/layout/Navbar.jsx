@@ -1,6 +1,6 @@
 ﻿import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { Sun, Moon, LogIn, LogOut, User } from 'lucide-react'
+import { Sun, Moon, LogIn, LogOut, User, FileCode } from 'lucide-react'
 import { useTheme } from '../../hooks/useTheme'
 import { useAuth } from '../../hooks/useAuth'
 
@@ -26,10 +26,21 @@ export default function Navbar() {
 
         <div className="flex items-center gap-2">
           {user && (
-            <span className="text-sm text-gray-400 flex items-center gap-1">
-              <User size={16} />
-              {user.username}
-            </span>
+            <>
+              <Link
+                to="/my-snippets"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-400 hover:text-blue-400 hover:bg-blue-400/10 transition-all"
+                title="My Snippets"
+              >
+                <FileCode size={16} />
+                <span className="hidden sm:inline">My Snippets</span>
+              </Link>
+
+              <span className="text-sm text-gray-400 flex items-center gap-1">
+                <User size={16} />
+                {user.username}
+              </span>
+            </>
           )}
 
           {user ? (
