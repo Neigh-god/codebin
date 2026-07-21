@@ -2,10 +2,11 @@ from fastapi import APIRouter, HTTPException, Response, Query
 from pydantic import BaseModel
 from typing import Optional, Literal
 from datetime import datetime, timedelta
+import bcrypt
 from app.utils.slug import generate_slug
 from app.database import init_db, async_session, SnippetModel
-from app.services.snippets import get_snippet_by_slug, create_snippet, increment_view_count
-import bcrypt
+from app.services.snippets import get_snippet_by_slug, create_snippet, increment_view_count, get_snippets_by_user
+from app.routers.auth import get_current_user
 from sqlalchemy import select, desc
 
 router = APIRouter()
@@ -20,21 +21,14 @@ class SnippetCreate(BaseModel):
     password: Optional[str] = None
     is_public: bool = True
 
-def generate_unique_slug(max_retries: int = 5) -> str:
-    import shortuuid
-    for _ in range(max_retries):
-        slug = shortuuid.ShortUUID().random(length=6)
-        import asyncio
-        existing = asyncio.get_event_loop().run_until_complete(get_snippet_by_slug(slug))
-        if not existing:
-            return slug
-    raise HTTPException(status_code=500, detail="Could not generate unique slug")
 
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
+
 def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode(), hashed.encode())
+
 
 def calculate_expiry(expiry_type: str, expiry_value: Optional[str]) -> Optional[datetime]:
     if expiry_type == "never":
@@ -52,6 +46,7 @@ def calculate_expiry(expiry_type: str, expiry_value: Optional[str]) -> Optional[
         elif expiry_value == "1m":
             return now + timedelta(days=30)
     return None
+
 
 # ========== RECENT SNIPPETS — MUST BE BEFORE /{slug} ROUTES ==========
 @router.get("/snippets/recent")
@@ -82,6 +77,29 @@ async def get_recent_snippets(limit: int = Query(10, ge=1, le=50)):
             for s in snippets
         ]
 
+
+# ========== MY SNIPPETS — MUST BE BEFORE /{slug} ROUTES ==========
+@router.get("/snippets/me")
+async def my_snippets(token: str = Query(...)):
+    user_id = await get_current_user(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    snippets = await get_snippets_by_user(user_id)
+    return [
+        {
+            "slug": s.slug,
+            "title": s.title,
+            "language": s.language,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+            "view_count": s.view_count,
+            "expiry_type": s.expiry_type,
+            "is_public": s.is_public,
+        }
+        for s in snippets
+    ]
+
+
 # ========== EMBED ROUTE — MUST BE BEFORE /{slug} ROUTES ==========
 @router.get("/snippets/{slug}/embed")
 async def embed_snippet(slug: str):
@@ -90,7 +108,6 @@ async def embed_snippet(slug: str):
     if not snippet:
         raise HTTPException(status_code=404, detail="Snippet not found")
     
-    # Check expiry
     if snippet.expiry_type == "time" and snippet.expires_at:
         if snippet.expires_at < datetime.utcnow():
             raise HTTPException(status_code=410, detail="Snippet has expired")
@@ -98,7 +115,6 @@ async def embed_snippet(slug: str):
     if snippet.password_hash:
         raise HTTPException(status_code=403, detail="Password protected snippets cannot be embedded")
     
-    # Language colors
     lang_colors = {
         "python": "#306998", "javascript": "#f7df1e", "typescript": "#3178c6",
         "html": "#e34c26", "css": "#264de4", "json": "#888888",
@@ -107,13 +123,11 @@ async def embed_snippet(slug: str):
     }
     color = lang_colors.get(snippet.language, "#888888")
     
-    # Build lines HTML separately
     lines_html = ''.join(
         f'<div class="line"><span class="line-num">{i+1}</span><span class="line-content">{line}</span></div>'
         for i, line in enumerate(snippet.code.split('\n'))
     )
     
-    # Use .format() instead of f-string to avoid curly brace conflicts
     html = """<!DOCTYPE html>
 <html>
 <head>
@@ -206,9 +220,15 @@ async def embed_snippet(slug: str):
     
     return Response(content=html, media_type="text/html")
 
+
 @router.post("/snippets")
-async def create_snippet_endpoint(data: SnippetCreate):
-    from app.services.snippets import get_snippet_by_slug
+async def create_snippet_endpoint(data: SnippetCreate, token: Optional[str] = Query(None)):
+    # Link to user if token provided
+    user_id = None
+    if token:
+        user_id = await get_current_user(token)
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
     
     slug = generate_slug()
     while await get_snippet_by_slug(slug):
@@ -231,6 +251,7 @@ async def create_snippet_endpoint(data: SnippetCreate):
         "max_views": max_views,
         "password_hash": password_hash,
         "is_public": data.is_public,
+        "user_id": user_id,
     }
     
     snippet = await create_snippet(snippet_data)
@@ -240,6 +261,7 @@ async def create_snippet_endpoint(data: SnippetCreate):
         "url": f"/s/{slug}",
         "message": "Snippet created successfully"
     }
+
 
 @router.get("/snippets/{slug}")
 async def get_snippet(slug: str, password: Optional[str] = None):
@@ -273,6 +295,7 @@ async def get_snippet(slug: str, password: Optional[str] = None):
         "view_count": snippet.view_count + 1,
     }
 
+
 @router.get("/snippets/{slug}/raw")
 async def get_snippet_raw(slug: str):
     snippet = await get_snippet_by_slug(slug)
@@ -281,6 +304,7 @@ async def get_snippet_raw(slug: str):
         raise HTTPException(status_code=404, detail="Snippet not found")
     
     return Response(content=snippet.code, media_type="text/plain")
+
 
 @router.get("/snippets/{slug}/download")
 async def download_snippet(slug: str):

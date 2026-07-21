@@ -14,7 +14,9 @@ import Navbar from './components/layout/Navbar'
 import Footer from './components/layout/Footer'
 import SnippetView from './pages/SnippetView'
 import { useToast } from './hooks/useToast'
-import Login from './pages/login'
+import Login from './pages/Login'
+import MySnippets from './pages/MySnippets'
+import { useAuth } from './hooks/useAuth'
 
 const languages = [
   { value: 'text', label: 'Plain Text' },
@@ -41,6 +43,7 @@ const expiryOptions = [
 
 function HomePage() {
   const { toasts, addToast, removeToast } = useToast()
+  const { getToken, user } = useAuth()
   const [code, setCode] = useState('')
   const [language, setLanguage] = useState('text')
   const [title, setTitle] = useState('')
@@ -69,7 +72,12 @@ function HomePage() {
     }
 
     try {
-      const res = await fetch('http://localhost:8000/api/snippets', {
+      const token = getToken()
+      const url = token
+        ? `http://localhost:8000/api/snippets?token=${token}`
+        : 'http://localhost:8000/api/snippets'
+
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -282,6 +290,7 @@ function App() {
       <Route path="/" element={<HomePage />} />
       <Route path="/s/:slug" element={<SnippetView />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/my-snippets" element={<MySnippets />} />
     </Routes>
   )
 }

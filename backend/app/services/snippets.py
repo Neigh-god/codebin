@@ -1,13 +1,15 @@
-﻿from sqlalchemy import select, update
+﻿from sqlalchemy import select, update, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import async_session, SnippetModel
 from datetime import datetime
 import bcrypt
 
+
 async def get_snippet_by_slug(slug: str):
     async with async_session() as session:
         result = await session.execute(select(SnippetModel).where(SnippetModel.slug == slug))
         return result.scalar_one_or_none()
+
 
 async def create_snippet(data: dict):
     async with async_session() as session:
@@ -17,6 +19,7 @@ async def create_snippet(data: dict):
         await session.refresh(snippet)
         return snippet
 
+
 async def increment_view_count(slug: str):
     async with async_session() as session:
         await session.execute(
@@ -25,6 +28,17 @@ async def increment_view_count(slug: str):
             .values(view_count=SnippetModel.view_count + 1)
         )
         await session.commit()
+
+
+async def get_snippets_by_user(user_id: int):
+    async with async_session() as session:
+        result = await session.execute(
+            select(SnippetModel)
+            .where(SnippetModel.user_id == user_id)
+            .order_by(desc(SnippetModel.created_at))
+        )
+        return result.scalars().all()
+
 
 async def delete_expired_snippets():
     async with async_session() as session:

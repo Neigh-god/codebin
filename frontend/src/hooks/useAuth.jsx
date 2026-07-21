@@ -41,8 +41,10 @@ export function AuthProvider({ children }) {
         setUser(null)
     }
 
+    const getToken = () => localStorage.getItem('codebin-token')
+
     return (
-        <AuthContext.Provider value={{ user, login, logout, loading }}>
+        <AuthContext.Provider value={{ user, login, logout, loading, getToken }}>
             {children}
         </AuthContext.Provider>
     )
