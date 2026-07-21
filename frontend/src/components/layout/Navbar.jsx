@@ -1,6 +1,6 @@
 ﻿import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { Sun, Moon, LogIn, LogOut, User, FileCode } from 'lucide-react'
+import { Sun, Moon, LogIn, LogOut, User, FileCode, Info } from 'lucide-react'
 import { useTheme } from '../../hooks/useTheme'
 import { useAuth } from '../../hooks/useAuth'
 
@@ -25,6 +25,14 @@ export default function Navbar() {
         </Link>
 
         <div className="flex items-center gap-2">
+          <Link
+            to="/about"
+            className="p-2 rounded-lg text-gray-400 hover:text-purple-400 hover:bg-purple-400/10 transition-all"
+            title="About"
+          >
+            <Info size={18} />
+          </Link>
+
           {user && (
             <>
               <Link

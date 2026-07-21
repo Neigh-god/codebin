@@ -16,6 +16,7 @@ import SnippetView from './pages/SnippetView'
 import { useToast } from './hooks/useToast'
 import Login from './pages/Login'
 import MySnippets from './pages/MySnippets'
+import About from './pages/About'
 import { useAuth } from './hooks/useAuth'
 
 const languages = [
@@ -291,6 +292,7 @@ function App() {
       <Route path="/s/:slug" element={<SnippetView />} />
       <Route path="/login" element={<Login />} />
       <Route path="/my-snippets" element={<MySnippets />} />
+      <Route path="/about" element={<About />} />
     </Routes>
   )
 }
